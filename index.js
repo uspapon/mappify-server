@@ -59,13 +59,71 @@ async function run() {
         // API to check authorization
         app.post('/jwt', (req, res) => {
             const user = req.body;
+            console.log("user", user);
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
             res.send({ token });
         })
 
-        // USER related APIs
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            // console.log("decoded=", req.decoded.email, "past=", req.decoded.email)
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            if (user?.role != 'admin') {
+              return res.status(403).send({ error: true, message: 'Access Forbidden' })
+            }
+            next();
+      
+      
+          }   
+          
+        const verifyInstructor = async(req, res, next) => {
+            const email = req.decoded.email;
+            const query = {email: email};
+            const user = await userCollection.findOne(query);
+            if(user?.role !== 'instructor'){
+                return res.status(403).send({error: true, message: 'Access Forbidden'})
+            }
+            next();
+        }
 
-        app.get('/users', verifyJWT, async (req, res) => {
+        // USER related APIs
+        // app.get('/users/admin/:email', verifyJWT, async(req, res) => {
+        //     const email = req.params.email;
+            
+        //     console.log('i am hit')
+        //     console.log(email);
+
+        //     if(req.decoded.email !== email){
+        //         return res.send({admin: false})
+        //     }
+
+        //     const query = { email: email};
+        //     const foundUser = await userCollection.findOne(query);
+            
+        //     console.log(foundUser);
+        //     const result = { admin: foundUser?.role === 'admin' }
+        //     res.send(result);
+        // })
+
+
+
+        app.get('/user/role/:email', verifyJWT, async(req, res) => {
+            const email = req.params.email;
+
+            console.log(email, "=" )
+
+            if(req.decoded.email !== email){
+                return res.send({role: null})
+            }
+
+            const query = {email: email};
+            const user = await userCollection.findOne(query);
+            if(user?.role === 'admin') return res.send({role: 'admin'})
+            else if (user?.role === 'instructor') return res.send({role: 'instructor'})
+        })
+
+        app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result);
         })
