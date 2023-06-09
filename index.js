@@ -12,6 +12,29 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const verifyJWT = (req, res, next) => {
+    const authorization = req.headers.authorization; // check if reques has authorization in the header
+    if (!authorization) {
+        return res.status(401).send({ error: true, message: "Unauthorized Access" })
+    }
+
+    // bearer token
+    const token = authorization.split(' ')[1];
+
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ error: true, message: "Unauthorized Access" })
+        }
+
+        req.decoded = decoded;
+        console.log("jwt found this: ", req.decoded);
+        next();
+    })
+
+
+
+}
+
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -34,27 +57,27 @@ async function run() {
         const userCollection = client.db("mappifyMindDB").collection("users");
 
         // API to check authorization
-        app.post('http://localhost:5000/', (req, res) => {
+        app.post('/jwt', (req, res) => {
             const user = req.body;
-            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h'})
-            res.send(token);
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            res.send({ token });
         })
 
         // USER related APIs
 
-        app.get('/users', async(req, res) => {
+        app.get('/users', verifyJWT, async (req, res) => {
             const result = await userCollection.find().toArray();
             res.send(result);
         })
 
-        app.post('/users', async(req, res) => {
+        app.post('/users', async (req, res) => {
             const user = req.body;
             // console.log(user);
-            const query = {email: user.email}
+            const query = { email: user.email }
             const isUserExists = await userCollection.findOne(query);
             // console.log("existing user", isUserExists);
-            if(isUserExists){
-                return res.send({message: "user already exists"})
+            if (isUserExists) {
+                return res.send({ message: "user already exists" })
             }
             const result = await userCollection.insertOne(user);
             res.send(result);
@@ -63,30 +86,30 @@ async function run() {
         app.patch('/users/admin/:id', async (req, res) => {
             const id = req.params;
             console.log("found:", id)
-            const filter = {_id: new ObjectId(id)}
-            const updatedDoc = { 
-                $set: { role: 'admin'}
+            const filter = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: { role: 'admin' }
             }
             const result = await userCollection.updateOne(filter, updatedDoc);
             console.log(result);
             res.send(result);
         })
 
-        app.patch('/users/instructor/:id', async(req, res) => {
+        app.patch('/users/instructor/:id', async (req, res) => {
             const id = req.params;
             console.log(id)
-            const filter = { _id: new ObjectId(id)};
+            const filter = { _id: new ObjectId(id) };
             const updatedDoc = {
-                $set: { role: 'instructor'}
+                $set: { role: 'instructor' }
             }
             const result = await userCollection.updateOne(filter, updatedDoc);
             console.log(result);
             res.send(result);
         })
 
-        app.delete('/users/:id', async(req, res) => {
+        app.delete('/users/:id', async (req, res) => {
             const id = req.params;
-            const filter = {_id: new ObjectId(id)};
+            const filter = { _id: new ObjectId(id) };
             const result = await userCollection.deleteOne(filter);
             console.log(result);
             res.send(result);
