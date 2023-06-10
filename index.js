@@ -16,7 +16,7 @@ app.use(express.json());
  * sends authorization with the document header
  * the bellow function reads that header with line number #21
  * if authorization not found it do not let the route(url) to be hit
- * **/ 
+ * **/
 const verifyJWT = (req, res, next) => {
     const authorization = req.headers.authorization; // check if reques has authorization in the header
     if (!authorization) {
@@ -66,7 +66,7 @@ async function run() {
          * monitors if user came with a valid accesstoken that matches with the token
          * stored in .env file
          * or not. 
-         * **/ 
+         * **/
         app.post('/jwt', (req, res) => {
             const user = req.body;
             console.log("user", user);
@@ -77,26 +77,26 @@ async function run() {
         /****
          * prevents accessing this route from accessing the routes(url)
          * from those who are already system user but role wise forbidden
-         * **/ 
+         * **/
         const verifyAdmin = async (req, res, next) => {
             const email = req.decoded.email;
             // console.log("decoded=", req.decoded.email, "past=", req.decoded.email)
             const query = { email: email };
             const user = await userCollection.findOne(query);
             if (user?.role != 'admin') {
-              return res.status(403).send({ error: true, message: 'Access Forbidden' })
+                return res.status(403).send({ error: true, message: 'Access Forbidden' })
             }
             next();
-      
-      
-          }   
-          
-        const verifyInstructor = async(req, res, next) => {
+
+
+        }
+
+        const verifyInstructor = async (req, res, next) => {
             const email = req.decoded.email;
-            const query = {email: email};
+            const query = { email: email };
             const user = await userCollection.findOne(query);
-            if(user?.role !== 'instructor'){
-                return res.status(403).send({error: true, message: 'Access Forbidden'})
+            if (user?.role !== 'instructor') {
+                return res.status(403).send({ error: true, message: 'Access Forbidden' })
             }
             next();
         }
@@ -104,20 +104,20 @@ async function run() {
         /***
          * used for condetional rendering of content according 
          * to the user role
-         * **/  
-        app.get('/user/role/:email', verifyJWT, async(req, res) => {
+         * **/
+        app.get('/user/role/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
 
-            console.log(email, "=" )
+            console.log(email, "=")
 
-            if(req.decoded.email !== email){
-                return res.send({role: null})
+            if (req.decoded.email !== email) {
+                return res.send({ role: null })
             }
 
-            const query = {email: email};
+            const query = { email: email };
             const user = await userCollection.findOne(query);
-            if(user?.role === 'admin') return res.send({role: 'admin'})
-            else if (user?.role === 'instructor') return res.send({role: 'instructor'})
+            if (user?.role === 'admin') return res.send({ role: 'admin' })
+            else if (user?.role === 'instructor') return res.send({ role: 'instructor' })
         })
 
         app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
@@ -172,12 +172,12 @@ async function run() {
 
         // ADMIN DASHBOARD
         // Class related APIs   
-        app.get('/admin/allclasses/', async(req, res) => {
+        app.get('/admin/allclasses/', async (req, res) => {
             const result = await classCollection.find().toArray();
             console.log(result);
             res.send(result);
-        })   
-        
+        })
+
         app.patch('/admin/class/approve/:id', async (req, res) => {
             const id = req.params;
             console.log(id)
@@ -200,7 +200,7 @@ async function run() {
             const result = await classCollection.updateOne(filter, updatedDoc);
             console.log(result);
             res.send(result);
-        })        
+        })
 
         // INSTRUCTOR DASHBOARD
         // Class related APIs
@@ -210,11 +210,11 @@ async function run() {
             const result = await classCollection.insertOne(newClass);
             console.log(result)
             res.send(result);
-          })
+        })
 
-        app.get('/instructor/myclasses/:email', async(req, res) => {
+        app.get('/instructor/myclasses/:email', async (req, res) => {
             const email = req.params.email;
-            const query = {email: email};
+            const query = { email: email };
             const result = await classCollection.find(query).toArray();
             console.log(result);
             res.send(result);
@@ -224,18 +224,62 @@ async function run() {
 
 
         // API Related to website
-        app.get('/ourclasses', async(req, res) => {
-            const query = {status: 'approved'};
+        app.get('/ourclasses', async (req, res) => {
+            const query = { status: 'approved' };
             const result = await classCollection.find(query).toArray();
             console.log(result);
             res.send(result);
         })
         app.get('/ourinstructors', async(req, res) => {
             const query = {role: 'instructor'};
+            // const email = await userCollection.find(query).toArray();
             const result = await userCollection.find(query).toArray();
+
             console.log(result);
             res.send(result);
         })
+
+        app.get('/ourinstructors/classes', async (req, res) => {
+
+            const pipeline = [
+                {
+                    $lookup: {
+                        from: 'classes',
+                        localField: 'email',
+                        foreignField: 'email',
+                        as: 'classData'
+                    }
+                },
+                {
+                    $unwind: '$classData'
+                }
+                ,
+                {
+                    $group: {
+                        _id: {
+                            // seats: '$classData.seats', 
+                            name: '$classData.name',
+                            // email: '$classData.email',
+                            // price: '$classData.price',
+                        
+                        },
+                       
+                    }
+                },
+                {
+                    $project: {
+                        classData: '$_id',
+                        _id: 0
+                    }
+                }
+             ];
+
+            const result = await userCollection.aggregate(pipeline).toArray()
+            res.send(result)
+
+        })
+
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
