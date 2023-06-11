@@ -1,8 +1,9 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 
 
 const port = process.env.PORT || 5000;
@@ -59,6 +60,7 @@ async function run() {
         const userCollection = client.db("mappifyMindDB").collection("users");
         const classCollection = client.db("mappifyMindDB").collection("classes");
         const bookingCollection = client.db("mappifyMindDB").collection("bookings");
+        const paymentCollection = client.db("mappifyMindDB").collection("payments");
 
         // API to check authorization
 
@@ -231,8 +233,8 @@ async function run() {
             console.log(result);
             res.send(result);
         })
-        app.get('/ourinstructors', async(req, res) => {
-            const query = {role: 'instructor'};
+        app.get('/ourinstructors', async (req, res) => {
+            const query = { role: 'instructor' };
             // const email = await userCollection.find(query).toArray();
             const result = await userCollection.find(query).toArray();
 
@@ -262,9 +264,9 @@ async function run() {
                             name: '$classData.name',
                             // email: '$classData.email',
                             // price: '$classData.price',
-                        
+
                         },
-                       
+
                     }
                 },
                 {
@@ -273,17 +275,17 @@ async function run() {
                         _id: 0
                     }
                 }
-             ];
+            ];
 
             const result = await userCollection.aggregate(pipeline).toArray()
             res.send(result)
 
         })
 
-        app.post('/select-class/', async(req, res) => {
+        app.post('/select-class/', async (req, res) => {
             const saveClass = req.body;
             const result = await bookingCollection.insertOne(saveClass);
-            console.log("I am done",result)
+            console.log("I am done", result)
             res.send(result);
         })
 
@@ -291,17 +293,52 @@ async function run() {
             const email = req.params.email;
             const query = { email: email, status: 'pending' };
             const result = await bookingCollection.find(query).toArray();
-            res.send(result); 
+            res.send(result);
         })
 
         app.get('/enrolled-classes/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email: email, status: 'paid' };
             const result = await bookingCollection.find(query).toArray();
-            res.send(result); 
+            res.send(result);
         })
 
+        // APIs related to payment
+        
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+            console.log(price)
+            const amount = parseInt(price * 100);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: 'usd',
+                payment_method_types: ['card']
+            })
+            res.send({
+                clientSecret: paymentIntent.client_secret
+            })
+        })
 
+        app.post('/payments', verifyJWT, async (req, res) => {
+            // store payment info
+            const payment = req.body;
+            const insertResult = await paymentCollection.insertOne(payment);
+
+            // update booking status from pending to paid
+            const filter = { _id: new ObjectId(payment.bookingId) }
+            const updatedDoc = {
+                $set: { status: 'paid' }
+            }        
+            const updateStatus = await bookingCollection.updateOne(filter, updatedDoc);
+            
+            // reduce number of seat from classes collection
+            const query = { _id: new ObjectId(payment.classId) }
+            const update = { $inc: { seats: -1 } };
+            const updateSeat = await classCollection.updateOne(query, update);
+            
+
+            res.send({ insertResult, updateStatus, updateSeat });
+          })
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
