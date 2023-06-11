@@ -58,6 +58,7 @@ async function run() {
 
         const userCollection = client.db("mappifyMindDB").collection("users");
         const classCollection = client.db("mappifyMindDB").collection("classes");
+        const bookingCollection = client.db("mappifyMindDB").collection("bookings");
 
         // API to check authorization
 
@@ -277,6 +278,20 @@ async function run() {
             const result = await userCollection.aggregate(pipeline).toArray()
             res.send(result)
 
+        })
+
+        app.post('/select-class/', async(req, res) => {
+            const saveClass = req.body;
+            const result = await bookingCollection.insertOne(saveClass);
+            console.log("I am done",result)
+            res.send(result);
+        })
+
+        app.get('/bookings/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const result = await bookingCollection.find(query).toArray();
+            res.send(result); 
         })
 
 
