@@ -33,7 +33,7 @@ const verifyJWT = (req, res, next) => {
         }
 
         req.decoded = decoded;
-        console.log("jwt found this: ", req.decoded);
+        // console.log("jwt found this: ", req.decoded);
         next();
     })
 }
@@ -111,7 +111,7 @@ async function run() {
         app.get('/user/role/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
 
-            console.log(email, "=")
+            // console.log(email, "=")
 
             if (req.decoded.email !== email) {
                 return res.send({ role: null })
@@ -224,24 +224,6 @@ async function run() {
         })
 
 
-
-
-        // API Related to website
-        app.get('/ourclasses', async (req, res) => {
-            const query = { status: 'approved' };
-            const result = await classCollection.find(query).toArray();
-            console.log(result);
-            res.send(result);
-        })
-        app.get('/ourinstructors', async (req, res) => {
-            const query = { role: 'instructor' };
-            // const email = await userCollection.find(query).toArray();
-            const result = await userCollection.find(query).toArray();
-
-            console.log(result);
-            res.send(result);
-        })
-
         app.get('/ourinstructors/classes', async (req, res) => {
 
             const pipeline = [
@@ -282,6 +264,7 @@ async function run() {
 
         })
 
+        //  apis related to student dashboard
         app.post('/select-class/', async (req, res) => {
             const saveClass = req.body;
             const result = await bookingCollection.insertOne(saveClass);
@@ -339,6 +322,37 @@ async function run() {
 
             res.send({ insertResult, updateStatus, updateSeat });
           })
+
+          app.get('/payment-history/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const result = await paymentCollection.find(query).toArray();
+            res.send(result);
+        })
+
+        /****************************************/ 
+        // API Related to website
+        app.get('/ourclasses', async (req, res) => {
+            const query = { status: 'approved' };
+            const result = await classCollection.find(query).toArray();
+            console.log(result);
+            res.send(result);
+        })
+        app.get('/ourinstructors', async (req, res) => {
+            const query = { role: 'instructor' };
+            // const email = await userCollection.find(query).toArray();
+            const result = await userCollection.find(query).toArray();
+
+            console.log(result);
+            res.send(result);
+        })
+
+        
+
+
+
+
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
