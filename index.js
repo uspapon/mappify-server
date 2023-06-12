@@ -401,7 +401,7 @@ async function run() {
         app.get('/payment-history/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
             const query = { eamil: email };
-            const result = await paymentCollection.find(query).toArray();
+            const result = await paymentCollection.find(query).sort({ date: -1 }).toArray();
             console.log("empty?", result);
             res.send(result);
         })
@@ -442,6 +442,41 @@ async function run() {
             ];
 
             const result = await classCollection.aggregate(query).toArray()
+            res.send(result)
+        })
+
+        app.get('/popular-instructors', async (req, res) => {
+            const pipeLine = [
+                {
+                  $lookup: {
+                    from: "users",
+                    localField: "email",
+                    foreignField: "email",
+                    as: "instructor"
+                  }
+                },
+                {
+                  $match: {
+                    "instructor.role": "instructor"
+                  }
+                },
+                {
+                  $project: {
+                    _id: 0,
+                    instructorImage: "$instructor.photo",
+                    instructorName: "$instructor.name",
+                    seatsSold: { $subtract: [ "$totalSeats", "$seats" ] }
+                  }
+                },
+                {
+                  $sort: { seatsSold: -1 }
+                },
+                {
+                  $limit: 6 // Retrieve the top 6 instructors
+                }
+              ];
+
+            const result = await classCollection.aggregate(pipeLine).toArray()
             res.send(result)
         })
 
