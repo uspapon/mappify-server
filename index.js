@@ -121,6 +121,7 @@ async function run() {
             const user = await userCollection.findOne(query);
             if (user?.role === 'admin') return res.send({ role: 'admin' })
             else if (user?.role === 'instructor') return res.send({ role: 'instructor' })
+            else if (user?.role === 'student') return res.send({ role: 'student' })
         })
 
         app.get('/users', verifyJWT, verifyAdmin, async (req, res) => {
@@ -141,7 +142,7 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/users/admin/:id', async (req, res) => {
+        app.patch('/users/admin/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params;
             console.log("found:", id)
             const filter = { _id: new ObjectId(id) }
@@ -153,7 +154,7 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/users/instructor/:id', async (req, res) => {
+        app.patch('/users/instructor/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params;
             console.log(id)
             const filter = { _id: new ObjectId(id) };
@@ -165,7 +166,7 @@ async function run() {
             res.send(result);
         })
 
-        app.delete('/users/:id', async (req, res) => {
+        app.delete('/users/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params;
             const filter = { _id: new ObjectId(id) };
             const result = await userCollection.deleteOne(filter);
@@ -181,7 +182,7 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/admin/class/approve/:id', async (req, res) => {
+        app.patch('/admin/class/approve/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params;
             console.log(id)
             const filter = { _id: new ObjectId(id) };
@@ -193,7 +194,7 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/admin/class/deny/:id', async (req, res) => {
+        app.patch('/admin/class/deny/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params;
             console.log(id)
             const filter = { _id: new ObjectId(id) };
@@ -205,7 +206,7 @@ async function run() {
             res.send(result);
         })
 
-        app.patch('/admin/class/feedback/:id', async (req, res) => {
+        app.patch('/admin/class/feedback/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params;
             const message = req.body;
             console.log(id)
@@ -228,7 +229,7 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/instructor/myclasses/:email', async (req, res) => {
+        app.get('/instructor/myclasses/:email', verifyJWT, verifyInstructor, async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
             const result = await classCollection.find(query).toArray();
@@ -291,7 +292,7 @@ async function run() {
         })
 
 
-        app.get('/ourinstructors/classes', async (req, res) => {
+        app.get('/ourinstructors/classes', verifyJWT, verifyInstructor, async (req, res) => {
 
             const pipeline = [
                 {
@@ -332,21 +333,28 @@ async function run() {
         })
 
         //  apis related to student dashboard
-        app.post('/select-class/', async (req, res) => {
+        app.post('/select-class/', verifyJWT, async (req, res) => {
             const saveClass = req.body;
             const result = await bookingCollection.insertOne(saveClass);
             console.log("I am done", result)
             res.send(result);
         })
 
-        app.get('/bookings/:email', async (req, res) => {
+        app.get('/bookings/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
             const query = { email: email, status: 'pending' };
             const result = await bookingCollection.find(query).toArray();
             res.send(result);
         })
+        app.delete('/bookings/:id', verifyJWT, async (req, res) => {
+            const id = req.params;
+            const filter = { _id: new ObjectId(id) };
+            const result = await bookingCollection.deleteOne(filter);
+            console.log(result);
+            res.send(result);       
+        })
 
-        app.get('/enrolled-classes/:email', async (req, res) => {
+        app.get('/enrolled-classes/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
             const query = { email: email, status: 'paid' };
             const result = await bookingCollection.find(query).toArray();
@@ -355,7 +363,7 @@ async function run() {
 
         // APIs related to payment
 
-        app.post('/create-payment-intent', async (req, res) => {
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
             const { price } = req.body;
             console.log(price)
             const amount = parseInt(price * 100);
@@ -390,7 +398,7 @@ async function run() {
             res.send({ insertResult, updateStatus, updateSeat });
         })
 
-        app.get('/payment-history/:email', async (req, res) => {
+        app.get('/payment-history/:email', verifyJWT, async (req, res) => {
             const email = req.params.email;
             const query = { eamil: email };
             const result = await paymentCollection.find(query).toArray();
