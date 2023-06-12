@@ -263,7 +263,7 @@ async function run() {
             //   res.send(result2);
 
 
-              // const pipeline = [
+            // const pipeline = [
             //     {
             //         $lookup: {
             //             from: 'classes',
@@ -351,7 +351,7 @@ async function run() {
             const filter = { _id: new ObjectId(id) };
             const result = await bookingCollection.deleteOne(filter);
             console.log(result);
-            res.send(result);       
+            res.send(result);
         })
 
         app.get('/enrolled-classes/:email', verifyJWT, async (req, res) => {
@@ -421,6 +421,28 @@ async function run() {
 
             console.log(result);
             res.send(result);
+        })
+
+        // best selling classes
+        app.get('/popular-classes', async (req, res) => {
+            const query = [
+                {
+                    $project: {
+                        _id: 1,
+                        image: 1,
+                        seatsSold: { $subtract: ["$totalSeats", "$seats"] }
+                    }
+                },
+                {
+                    $sort: { seatsSold: -1 }
+                },
+                {
+                    $limit: 6 // Retrieve the top 6 best-selling classes
+                }
+            ];
+
+            const result = await classCollection.aggregate(query).toArray()
+            res.send(result)
         })
 
 
