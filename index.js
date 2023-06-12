@@ -175,7 +175,7 @@ async function run() {
 
         // ADMIN DASHBOARD
         // Class related APIs   
-        app.get('/admin/allclasses/', async (req, res) => {
+        app.get('/admin/allclasses/', verifyJWT, verifyAdmin, async (req, res) => {
             const result = await classCollection.find().toArray();
             console.log(result);
             res.send(result);
@@ -205,6 +205,19 @@ async function run() {
             res.send(result);
         })
 
+        app.patch('/admin/class/feedback/:id', async (req, res) => {
+            const id = req.params;
+            const message = req.body;
+            console.log(id)
+            const filter = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: { feedback: message.feedback }
+            }
+            const result = await classCollection.updateOne(filter, updatedDoc);
+            console.log(result);
+            res.send(result);
+        })
+
         // INSTRUCTOR DASHBOARD
         // Class related APIs
         app.post('/class', verifyJWT, verifyInstructor, async (req, res) => {
@@ -221,6 +234,60 @@ async function run() {
             const result = await classCollection.find(query).toArray();
             console.log(result);
             res.send(result);
+
+            // const pipeline = [
+
+            //     {
+            //       $lookup: {
+            //         from: 'classes',
+            //         localField: 'classId',
+            //         foreignField: '_id',
+            //         as: 'class'
+            //       }
+            //     },
+            //     {
+            //       $unwind: '$class'
+            //     },
+            //     // {
+            //     //   $group: {
+            //     //     _id: '$class._id',
+            //     //     className: { $first: '$class.name' },
+            //     //     studentCount: { $sum: 1 }
+            //     //   }
+            //     // }
+            //   ];
+
+            //   const result2 = await bookingCollection.aggregate(pipeline).toArray();
+            //   console.log(result2);
+            //   res.send(result2);
+
+
+              // const pipeline = [
+            //     {
+            //         $lookup: {
+            //             from: 'classes',
+            //             localField: 'classId',
+            //             foreignField: '_id',
+            //             as: 'class'
+            //         }
+            //     },
+            //     {
+            //         $unwind: '$class'
+            //     },
+            //     {
+            //         $group: {
+            //             _id: '$class.email',
+            //             classId: { $first: '$class._id' },
+            //             className: { $first: '$class.name' },
+            //             classSeats: { $first: '$class.seats' },
+            //             studentCount: { $sum: 1 },
+            //             classPrice: { $first: '$class.price' },
+            //             classStatus: { $first: '$class.status' },
+            //         }
+            //     }
+            // ];
+
+
         })
 
 
@@ -287,7 +354,7 @@ async function run() {
         })
 
         // APIs related to payment
-        
+
         app.post('/create-payment-intent', async (req, res) => {
             const { price } = req.body;
             console.log(price)
@@ -311,26 +378,27 @@ async function run() {
             const filter = { _id: new ObjectId(payment.bookingId) }
             const updatedDoc = {
                 $set: { status: 'paid' }
-            }        
+            }
             const updateStatus = await bookingCollection.updateOne(filter, updatedDoc);
-            
+
             // reduce number of seat from classes collection
             const query = { _id: new ObjectId(payment.classId) }
             const update = { $inc: { seats: -1 } };
             const updateSeat = await classCollection.updateOne(query, update);
-            
+
 
             res.send({ insertResult, updateStatus, updateSeat });
-          })
+        })
 
-          app.get('/payment-history/:email', async (req, res) => {
+        app.get('/payment-history/:email', async (req, res) => {
             const email = req.params.email;
-            const query = { email: email };
+            const query = { eamil: email };
             const result = await paymentCollection.find(query).toArray();
+            console.log("empty?", result);
             res.send(result);
         })
 
-        /****************************************/ 
+        /****************************************/
         // API Related to website
         app.get('/ourclasses', async (req, res) => {
             const query = { status: 'approved' };
@@ -347,7 +415,7 @@ async function run() {
             res.send(result);
         })
 
-        
+
 
 
 
